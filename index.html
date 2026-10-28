@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Inventory Costing Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: University of New Haven course material, same frame as the Ledger Lab and Inventory Lab.
+   Frozen navy header over a frozen parts timeline; the inventory record and the current part side by side;
+   cost layers and the method comparison below. */
+:root{
+  --navy:#002D74; --gold:#FFC629;
+  --paper:#eff2f7; --sheet:#ffffff; --ink:#111b2e; --muted:#56617a; --rule:#d8dfea; --rule-strong:#a9b6cc;
+  --brand:#002D74; --brand-soft:#e3e9f4;
+  --mast-bg:#002D74; --mast-ink:#ffffff; --mast-muted:#c9d4ea;
+  --hl:#fff1bf; --hl-ink:#3a2e00;
+  --gold-ink:#8a6100; --gold-soft:#fcefc7;
+  --slate:#4b5670; --slate-soft:#e6e9f0;
+  --cogs:#002D74; --cogs-soft:#c7d4ec; --ei:#FFC629; --ei-soft:#ffe9a6;
+  --good:#1b7a46; --good-soft:#dcf1e4; --bad:#b3261e; --bad-soft:#fbe2df;
+  --field:#ffffff;
+  --shadow:0 1px 2px rgba(0,25,70,.07),0 6px 18px rgba(0,25,70,.05);
+  --f-display:"Barlow Semi Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Source Sans Pro","Helvetica Neue",Arial,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --b1:0px; --b2:0px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --gold-ink:#FFC629; --gold-soft:#2e2508;
+  --slate:#b3bdd4; --slate-soft:#1e2840;
+  --cogs:#5f8fe0; --cogs-soft:#1c2f55; --ei:#FFC629; --ei-soft:#4a3b0c;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#08101f; --sheet:#0f1a2e; --ink:#e6ebf5; --muted:#9aa7c0; --rule:#22304b; --rule-strong:#3a4b6e;
+  --brand:#8fb1f0; --brand-soft:#16264a;
+  --mast-bg:#001c4a; --mast-ink:#ffffff; --mast-muted:#b6c3df;
+  --hl:rgba(255,198,41,.2); --hl-ink:#ffe7a3;
+  --gold-ink:#FFC629; --gold-soft:#2e2508;
+  --slate:#b3bdd4; --slate-soft:#1e2840;
+  --cogs:#5f8fe0; --cogs-soft:#1c2f55; --ei:#FFC629; --ei-soft:#4a3b0c;
+  --good:#62d396; --good-soft:#123020; --bad:#ff8d82; --bad-soft:#3a1715;
+  --field:#0a1426;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 6px 18px rgba(0,0,0,.3);
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.12}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* Frozen header */
+.band1{background:var(--mast-bg);color:var(--mast-ink);border-bottom:4px solid var(--gold);z-index:6;padding-top:env(safe-area-inset-top,0px)}
+.band1 .wrap{padding-block:12px 12px}
+.b1-row{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:center;justify-content:space-between}
+.eyebrow{font-family:var(--f-display);font-size:12.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.band1 h1{font-size:clamp(22px,2.6vw,30px);font-weight:700}
+.biz{flex:1 1 380px;min-width:0;max-width:76ch;font-size:14.5px;color:var(--mast-muted);line-height:1.4;margin:0}
+.biz b{color:var(--mast-ink)}
+.setchip{font-family:var(--f-num);font-size:12.5px;color:var(--mast-muted);border:1px solid rgba(255,255,255,.3);border-radius:4px;padding:5px 10px;white-space:nowrap}
+.setchip b{color:var(--gold);font-weight:600}
+.band2{position:sticky;top:0;z-index:5;background:var(--sheet);border-bottom:1px solid var(--rule);box-shadow:var(--shadow)}
+.band2 .wrap{padding-block:8px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:flex-end;justify-content:space-between}
+@media (min-width:760px){.band1{position:sticky;top:0}.band2{top:var(--b1)}}
+.status{display:flex;flex-direction:column;align-items:flex-end;gap:3px;font-size:13.5px;color:var(--muted)}
+.status b{color:var(--ink)}
+.score{font-size:13px;font-weight:600;background:var(--hl);color:var(--hl-ink);border-radius:999px;padding:2px 10px}
+.legend-dots{display:flex;gap:10px;font-size:12px}
+.legend-dots i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:0}
+.timeline{display:flex;gap:12px;align-items:stretch;overflow-x:auto;padding:4px 2px 2px;min-width:0;flex:1 1 560px}
+.phase{display:flex;flex-direction:column;gap:3px;flex:0 0 auto}
+.phase-label{font-family:var(--f-display);font-size:12px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;white-space:nowrap}
+.ph-setup .phase-label{color:var(--brand)} .ph-method .phase-label{color:var(--gold-ink)} .ph-compare .phase-label{color:var(--slate)}
+.ticks{display:flex;gap:3px}
+.tick{position:relative;flex:0 0 auto;min-width:30px;height:28px;border-radius:4px;border:1px solid var(--rule);background:var(--paper);font-family:var(--f-num);font-size:11.5px;font-weight:600;cursor:pointer;color:var(--muted);padding:0 8px}
+.ph-setup .tick.done{background:var(--navy);border-color:var(--navy);color:#fff}
+.ph-method .tick.done{background:var(--gold);border-color:var(--gold);color:#111b2e}
+.ph-compare .tick.done{background:var(--slate);border-color:var(--slate);color:var(--sheet)}
+.tick.cur{outline:2px solid var(--ink);outline-offset:1px}
+.tick.s-first::after,.tick.s-retry::after,.tick.s-shown::after{content:"";position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;border:1.5px solid var(--sheet)}
+.tick.s-first::after{background:var(--good)} .tick.s-retry::after{background:var(--gold)} .tick.s-shown::after{background:var(--muted)}
+
+/* Grid */
+main{padding-block:18px 40px;display:grid;gap:18px}
+.grid-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:18px;align-items:start}
+.grid-mid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:1060px){.grid-top,.grid-mid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);min-width:0;overflow:hidden;scroll-margin-top:calc(var(--b1) + var(--b2) + 12px)}
+@media (max-width:759px){.panel{scroll-margin-top:calc(var(--b2) + 12px)}}
+.panel-h{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;justify-content:space-between;padding:12px 16px 10px;border-bottom:1px solid var(--rule);border-top:3px solid var(--navy)}
+:root[data-theme="dark"] .panel-h{border-top-color:var(--brand)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .panel-h{border-top-color:var(--brand)}}
+.panel-h h2{font-size:21px;font-weight:700;color:var(--brand)}
+.panel-h .sub{font-size:13.5px;color:var(--muted)}
+.panel-b{padding:14px 16px 16px}
+#pPart .panel-h{border-top-color:var(--gold)}
+.pill{display:inline-block;font-family:var(--f-display);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;border-radius:999px;padding:2px 10px}
+.pill.setup{background:var(--brand-soft);color:var(--brand)}
+.pill.method{background:var(--gold-soft);color:var(--gold-ink)}
+.pill.compare{background:var(--slate-soft);color:var(--slate)}
+
+/* Inventory record */
+table.rec{width:100%;border-collapse:collapse;font-size:14.5px}
+.rec caption{caption-side:top;text-align:center;padding-bottom:10px}
+.cap-firm{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--brand)}
+.cap-name{font-family:var(--f-display);font-weight:600;font-size:16px}
+.cap-date{font-size:12.5px;color:var(--muted)}
+.rec th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:left;white-space:nowrap}
+.rec td{padding:7px 8px;border-bottom:1px solid var(--rule)}
+.rec .r{text-align:right}
+.rec td.r{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rec td.dim{color:var(--muted)}
+.rec tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+.facts{display:grid;gap:8px;margin-top:14px}
+.fact{display:flex;gap:10px;align-items:baseline;background:var(--paper);border-radius:6px;padding:8px 12px;font-size:14.5px}
+.fact .k{font-family:var(--f-display);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted);flex:0 0 112px}
+.note{font-size:13.5px;color:var(--muted);margin-top:10px}
+
+/* Part card */
+.meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13.5px;color:var(--muted)}
+.part-title{font-size:23px;font-weight:700;margin:10px 0 4px}
+.part-desc{margin:0 0 12px}
+.fields{display:grid;gap:10px}
+.field{border:1px solid var(--rule);border-radius:8px;padding:10px 12px}
+.field.ok{border-color:var(--good);box-shadow:inset 0 0 0 1px var(--good)}
+.field.no{border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.frow{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:10px;align-items:center}
+.flabel{font-weight:600;font-size:14.5px}
+.flabel small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.inbox{display:flex;align-items:center;border:1px solid var(--rule-strong);border-radius:6px;background:var(--field);min-height:38px;overflow:hidden}
+.inbox .pre,.inbox .post{font-family:var(--f-num);font-size:13px;color:var(--muted);padding:0 6px}
+.inbox input{border:0;background:transparent;width:100%;min-width:0;padding:7px 8px;font-family:var(--f-num);font-size:14.5px;text-align:right}
+.inbox input:focus{outline:none}
+.inbox:focus-within{outline:2px solid var(--brand);outline-offset:1px}
+.field select{width:100%;background:var(--field);border:1px solid var(--rule-strong);border-radius:6px;padding:7px 8px;min-height:38px;font-size:14.5px}
+.frow.sel{grid-template-columns:minmax(0,1fr) 210px}
+.fmsg{font-size:13.5px;font-weight:600;display:flex;gap:6px;margin-top:6px}
+.fmsg.ok{color:var(--good)} .fmsg.no{color:var(--bad)}
+.work{margin-top:6px;font-family:var(--f-num);font-size:12.5px;background:var(--paper);border-radius:6px;padding:6px 9px;line-height:1.6}
+.overall{margin-top:12px;font-size:14px;border-radius:8px;padding:9px 12px}
+.overall.ok{background:var(--good-soft);color:var(--good)}
+.overall.no{background:var(--bad-soft);color:var(--bad)}
+.overall.shown{background:var(--gold-soft);color:var(--gold-ink)}
+.hintbox{margin-top:12px;font-size:14px;background:var(--gold-soft);color:var(--gold-ink);border-radius:8px;padding:9px 12px}
+.why{margin-top:12px;background:var(--paper);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:10px 12px;font-size:14.5px}
+.why b{font-family:var(--f-display);font-size:16px}
+.actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);align-items:center;justify-content:space-between}
+.actions .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.actions .ask{font-size:13.5px;font-weight:600}
+.btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:6px;padding:7px 12px;font-size:14.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
+.btn:hover{background:var(--brand-soft)}
+.btn:disabled{opacity:.4;cursor:default;background:var(--sheet)}
+.btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.primary:hover{background:#0a3d8f}
+.btn.small{font-size:13.5px;padding:5px 10px;min-height:32px}
+.effects{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.eff{font-size:13.5px;font-weight:600;border-radius:6px;padding:4px 9px;border:1px solid var(--rule)}
+.eff.up{background:var(--good-soft);color:var(--good);border-color:transparent}
+.eff.none{color:var(--muted)}
+
+/* Layers */
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+.tab{border:1px solid var(--rule);background:transparent;border-radius:6px;padding:5px 11px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--muted)}
+.tab[aria-selected="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.tab .lock{font-size:11px;margin-left:4px}
+.stack{display:flex;height:46px;border-radius:6px;overflow:hidden;border:1px solid var(--rule-strong);margin:4px 0 8px}
+.layer{display:flex;min-width:0;border-right:2px solid var(--sheet)}
+.layer:last-child{border-right:0}
+.seg{display:flex;align-items:center;justify-content:center;font-family:var(--f-num);font-size:11.5px;font-weight:600;min-width:0;overflow:hidden;white-space:nowrap}
+.seg.c{background:var(--cogs);color:#fff}
+.seg.e{background:var(--ei);color:#111b2e}
+.stack-labels{display:flex;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.stack-labels span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-family:var(--f-num)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+table.lay{width:100%;border-collapse:collapse;font-size:13.5px}
+.lay th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:5px 6px;border-bottom:2px solid var(--rule-strong);text-align:right;white-space:nowrap}
+.lay th:first-child,.lay td:first-child{text-align:left}
+.lay th.ei{color:var(--gold-ink)} .lay th.cg{color:var(--brand)}
+.lay td{padding:5px 6px;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lay td:first-child{font-family:var(--f-body)}
+.lay td.gap,.lay th.gap{border-left:1px solid var(--rule-strong)}
+.lay tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:3px double var(--ink)}
+.locked{color:var(--muted);font-size:14px;padding:22px 6px;text-align:center}
+.scroll{overflow-x:auto}
+
+/* Comparison */
+table.cmp{width:100%;border-collapse:collapse;font-size:14px}
+.cmp th{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 8px;border-bottom:2px solid var(--rule-strong);text-align:right;vertical-align:bottom;line-height:1.25}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp td{padding:7px 6px;border-bottom:1px solid var(--rule);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cmp td:first-child{font-family:var(--f-body);font-weight:600}
+.cmp td.q{color:var(--muted)}
+.cmp tr.hi td{background:var(--hl);color:var(--hl-ink)}
+.cmp-note{margin-top:10px;font-size:13.5px;background:var(--paper);border-radius:6px;padding:8px 12px}
+.balanced{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--good)}
+@media (max-width:520px){.frow,.frow.sel{grid-template-columns:minmax(0,1fr)}.fact{flex-direction:column;gap:2px}.fact .k{flex:none}.status{align-items:flex-start}}
+footer{font-size:12.5px;color:var(--muted);padding-block:0 30px}
+</style>
+</head>
+<body>
+
+<header class="band1" id="band1">
+  <div class="wrap">
+    <div class="b1-row">
+      <div>
+        <div class="eyebrow">University of New Haven · Financial Accounting · Chapter 7</div>
+        <h1>Inventory Costing Lab</h1>
+      </div>
+      <p class="biz" id="biz"></p>
+      <div class="setchip" title="Each problem set uses different quantities and costs">Problem set <b id="setNo">—</b></div>
+    </div>
+  </div>
+</header>
+<div class="band2" id="band2">
+  <div class="wrap">
+    <div class="timeline" id="timeline" aria-label="Parts of the lab"></div>
+    <div class="status">
+      <div id="where"></div>
+      <span class="score" id="score" hidden></span>
+      <div class="legend-dots"><span><i style="background:var(--good)"></i>First try</span><span><i style="background:var(--gold)"></i>Retried</span><span><i style="background:var(--muted)"></i>Answer shown</span></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="grid-top">
+    <section class="panel" id="pRec" aria-labelledby="recH">
+      <div class="panel-h"><h2 id="recH">Inventory record</h2><span class="sub">Periodic system · how-to guides</span></div>
+      <div class="panel-b" id="record"></div>
+    </section>
+    <section class="panel" id="pPart" aria-labelledby="partH">
+      <div class="panel-h"><h2 id="partH">Your calculation</h2><span class="sub" id="partSub"></span></div>
+      <div class="panel-b" id="part"></div>
+    </section>
+  </div>
+  <div class="grid-mid">
+    <section class="panel" id="pLay" aria-labelledby="layH">
+      <div class="panel-h"><h2 id="layH">Cost layers</h2>
+        <div class="tabs" role="tablist" id="layTabs"></div></div>
+      <div class="panel-b" id="layers"></div>
+    </section>
+    <section class="panel" id="pCmp" aria-labelledby="cmpH">
+      <div class="panel-h"><h2 id="cmpH">Method comparison</h2><span class="sub">Fills in as you finish each part</span></div>
+      <div class="panel-b" id="compare"></div>
+    </section>
+  </div>
+</main>
+<footer class="wrap">Problem Solvers, Inc. and all figures are illustrative. All calculations use a periodic inventory system. Each problem set changes the quantities and costs.</footer>
+
+<script>
+(function(){
+"use strict";
+const YEAR=new Date().getFullYear();
+const MON=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const KEY="costlab1";
+const $=id=>document.getElementById(id);
+function fmt(n){return Math.abs(n).toLocaleString("en-US");}
+function d$(n){return "$"+fmt(n);}
+function u$(n){return fmt(n)+" units";}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function parseAmt(s){s=String(s||"").replace(/[$,\s]/g,"").replace(/units?$/i,"");if(s==="")return null;const n=Number(s);return isFinite(n)?n:NaN;}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function randomSeed(){return 10000+Math.floor(Math.random()*90000);}
+
+$("biz").innerHTML='<b>Problem Solvers, Inc.</b> started selling “how-to” business guides in June '+YEAR+', its first year of operations, so there is no beginning inventory. It uses a <b>periodic</b> system: the cost of goods sold and ending inventory are calculated once, at year-end.';
+
+// ---------- Problem generator ----------
+// Four purchases at changing costs. Quantities are chosen so the weighted average cost is a whole dollar,
+// and so FIFO and LIFO ending inventory each draw from two or more purchases.
+function gen(seed){
+  const r=mulberry32(seed);
+  const R=(a,b,s)=>{s=s||1;return a+s*Math.floor(r()*(Math.floor((b-a)/s)+1));};
+  for(let t=0;t<20000;t++){
+    const rising=r()<0.75, avg=R(12,20);
+    const ds=new Set(); while(ds.size<4)ds.add(R(-4,4));
+    const d=[...ds].sort((x,y)=>x-y); if(!rising)d.reverse();
+    if(d[3]===0)continue;
+    const q=[R(100,400,10),R(100,400,10),R(100,400,10)];
+    const s=q[0]*d[0]+q[1]*d[1]+q[2]*d[2]; if(s===0)continue;
+    const q4=-s/d[3]; if(!Number.isInteger(q4)||q4%10||q4<100||q4>400)continue;
+    q.push(q4);
+    const c=d.map(x=>avg+x);
+    const U=q.reduce((a,b)=>a+b,0), COGA=q.reduce((a,x,i)=>a+x*c[i],0);
+    if(COGA!==avg*U)continue;
+    const lo=Math.max(q[0],q[3])+10, hi=Math.min(U-200,Math.max(q[0],q[3])+250,Math.floor(U*0.45/10)*10);
+    if(hi<lo)continue;
+    const E=R(lo,hi,10), S=U-E;
+    // allocate ending units: FIFO from the newest purchase back, LIFO from the oldest forward
+    const take=(order)=>{const e=[0,0,0,0];let left=E;order.forEach(i=>{const x=Math.min(left,q[i]);e[i]=x;left-=x;});return e;};
+    const fe=take([3,2,1,0]), le=take([0,1,2,3]);
+    const cost=(e)=>e.reduce((a,x,i)=>a+x*c[i],0);
+    const fifo={eiU:fe,ei:cost(fe)}; fifo.cogs=COGA-fifo.ei;
+    const lifo={eiU:le,ei:cost(le)}; lifo.cogs=COGA-lifo.ei;
+    const wa={a:avg,ei:E*avg,cogs:S*avg};
+    if(new Set([fifo.ei,fifo.cogs,lifo.ei,lifo.cogs,wa.ei,wa.cogs]).size<6)continue;
+    const price=Math.max(...c)+R(8,15), sales=S*price;
+    const months=[5,7,9,11], dates=months.map(m=>({m,d:R(2,20)}));
+    return {q,c,dates,U,COGA,E,S,price,sales,fifo,lifo,wa,rising,
+      gp:{fifo:sales-fifo.cogs,lifo:sales-lifo.cogs,wa:sales-wa.cogs},
+      simpleAvg:c.reduce((a,b)=>a+b,0)/4};
+  }
+  throw new Error("Could not generate a problem set");
+}
+
+let P=null, seed=0;
+const LAYER_NAMES=()=>P.dates.map((x,i)=>"Purchase "+(i+1)+" · "+MS[x.m]+" "+x.d);
+function dt(i){return MS[P.dates[i].m]+" "+P.dates[i].d;}
+
+// ---------- Parts ----------
+// Each field: id, label, ans, kind ("$", "u" or "sel"), work (worked solution), wrong(v,vals) → specific message or null.
+function buildParts(){
+  const p=P, L=p.q.map((x,i)=>({q:x,c:p.c[i],date:dt(i)}));
+  const lineTot=L.map(l=>l.q*l.c);
+  const workLayers=(e,dir)=>{const idx=dir==="new"?[3,2,1,0]:[0,1,2,3];return idx.filter(i=>e[i]).map(i=>fmt(e[i])+" × "+d$(L[i].c)+" ("+L[i].date+") = "+d$(e[i]*L[i].c)).join(" + ")+" → "+d$(e.reduce((a,x,i)=>a+x*L[i].c,0));};
+  const costTrend=p.rising?"rising":"falling";
+  const cheaper=p.rising?"oldest":"newest";
+  const near=(v,x)=>Math.abs(v-x)<0.51;
+  const methName={fifo:"FIFO",lifo:"LIFO",wa:"weighted average"};
+  const highGP=p.rising?"fifo":"lifo", lowEI=p.rising?"lifo":"fifo";
+  return [
+    {id:"avail",phase:"setup",tick:"1",title:"Goods available for sale",
+     desc:"Add up everything Problem Solvers had available to sell during the year. With no beginning inventory, goods available equals the four purchases.",
+     hint:"Units available = total units purchased. Cost of goods available = (units × unit cost) for each purchase, added together. This total is the same under every cost flow method.",
+     why:"Cost of goods available for sale is the pool every method divides between cost of goods sold (on the income statement) and ending inventory (on the balance sheet). The methods differ only in which costs go where.",
+     fields:[
+      {id:"U",label:"Units available for sale",kind:"u",ans:p.U,work:L.map(l=>fmt(l.q)).join(" + ")+" = "+u$(p.U),
+       wrong:v=>v===p.E?"That is the ending count. Units available is every unit purchased during the year.":v===p.S?"That is units sold. Units available is every unit purchased during the year.":"Add the units from all four purchases. There is no beginning inventory in the company's first year."},
+      {id:"COGA",label:"Cost of goods available for sale",kind:"$",ans:p.COGA,work:L.map((l,i)=>fmt(l.q)+" × "+d$(l.c)+" = "+d$(lineTot[i])).join(" · ")+" → total "+d$(p.COGA),
+       wrong:v=>v===p.c.reduce((a,b)=>a+b,0)?"You added the unit costs. Multiply each purchase's units by its unit cost first, then add the four totals.":near(v,p.U*p.simpleAvg)&&v!==p.COGA?"You multiplied total units by a simple average of the unit costs. Multiply each purchase's units by its own unit cost, then add.":"Multiply each purchase's units by its unit cost, then add the four totals. Recheck each line."}
+     ]},
+    {id:"sold",phase:"setup",tick:"2",title:"Units sold",
+     desc:"Under a periodic system the company does not track each sale's units in its records. It counts what is left at year-end and works backward.",
+     hint:"Units sold = units available for sale − units in ending inventory (from the December 31 count).",
+     why:"A periodic system figures out units sold at the end of the year. Anything available that is not on the shelf at year-end is assumed sold.",
+     fields:[
+      {id:"S",label:"Units sold during the year",kind:"u",ans:p.S,work:fmt(p.U)+" available − "+fmt(p.E)+" on hand = "+u$(p.S),
+       wrong:v=>v===p.U+p.E?"Subtract the ending count from units available. Don't add it.":v===p.E?"That is the number still on hand. Units sold is what is no longer on hand.":"Units sold = units available − units counted on December 31."}
+     ]},
+    {id:"fifo",phase:"method",tick:"FIFO",method:"fifo",title:"First-in, first-out (FIFO)",
+     desc:"FIFO assumes the oldest guides are sold first. The guides left on the shelf come from the most recent purchases.",
+     hint:"Start with the most recent purchase ("+L[3].date+") and work backward until you have "+u$(p.E)+" for ending inventory. Cost of goods sold = cost of goods available − ending inventory.",
+     why:"Under FIFO, ending inventory is priced at the newest costs, so the balance sheet is close to current cost. With "+costTrend+" costs, FIFO's cost of goods sold uses the "+(p.rising?"older, lower":"older, higher")+" costs.",
+     fields:[
+      {id:"fei",label:"FIFO ending inventory",kind:"$",ans:p.fifo.ei,work:"Newest first: "+workLayers(p.fifo.eiU,"new"),
+       wrong:v=>v===p.lifo.ei?"That is the LIFO answer: you used the oldest costs. Under FIFO the oldest costs are sold first, so ending inventory comes from the newest purchases.":v===p.fifo.cogs?"That is FIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":v===p.E*L[3].c?"The "+u$(p.E)+" on hand is more than the "+u$(L[3].q)+" in the last purchase. Take the rest from the next most recent purchase.":v===p.wa.ei?"That is the weighted average answer. FIFO uses the actual costs of the newest purchases.":"Start with the newest purchase and work backward until you have "+u$(p.E)+"."},
+      {id:"fcg",label:"FIFO cost of goods sold",kind:"$",ans:p.fifo.cogs,work:d$(p.COGA)+" available − "+d$(p.fifo.ei)+" ending inventory = "+d$(p.fifo.cogs),
+       wrong:(v,vals)=>v===p.lifo.cogs?"That is LIFO cost of goods sold. Under FIFO, the oldest purchases go to cost of goods sold.":v===p.fifo.ei?"That is FIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":(vals.fei!==p.fifo.ei&&v===p.COGA-vals.fei)?"Your subtraction is right, but your ending inventory is not. Fix ending inventory first.":"Cost of goods sold = cost of goods available − ending inventory."}
+     ]},
+    {id:"lifo",phase:"method",tick:"LIFO",method:"lifo",title:"Last-in, first-out (LIFO)",
+     desc:"LIFO assumes the newest guides are sold first. Under a periodic system, the guides left on the shelf are priced at the year's earliest purchase costs.",
+     hint:"Start with the oldest purchase ("+L[0].date+") and work forward until you have "+u$(p.E)+" for ending inventory. Cost of goods sold = cost of goods available − ending inventory.",
+     why:"Under LIFO, cost of goods sold uses the newest costs, so the income statement reflects current costs. With "+costTrend+" costs, LIFO reports "+(p.rising?"higher":"lower")+" cost of goods sold than FIFO. LIFO is allowed under US GAAP but not under IFRS.",
+     fields:[
+      {id:"lei",label:"LIFO ending inventory",kind:"$",ans:p.lifo.ei,work:"Oldest first: "+workLayers(p.lifo.eiU,"old"),
+       wrong:v=>v===p.fifo.ei?"That is the FIFO answer: you used the newest costs. Under LIFO the newest costs are sold first, so ending inventory comes from the oldest purchases.":v===p.lifo.cogs?"That is LIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":v===p.E*L[0].c?"The "+u$(p.E)+" on hand is more than the "+u$(L[0].q)+" in the first purchase. Take the rest from the next oldest purchase.":v===p.wa.ei?"That is the weighted average answer. LIFO uses the actual costs of the oldest purchases.":"Start with the oldest purchase and work forward until you have "+u$(p.E)+"."},
+      {id:"lcg",label:"LIFO cost of goods sold",kind:"$",ans:p.lifo.cogs,work:d$(p.COGA)+" available − "+d$(p.lifo.ei)+" ending inventory = "+d$(p.lifo.cogs),
+       wrong:(v,vals)=>v===p.fifo.cogs?"That is FIFO cost of goods sold. Under LIFO, the newest purchases go to cost of goods sold.":v===p.lifo.ei?"That is LIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":(vals.lei!==p.lifo.ei&&v===p.COGA-vals.lei)?"Your subtraction is right, but your ending inventory is not. Fix ending inventory first.":"Cost of goods sold = cost of goods available − ending inventory."}
+     ]},
+    {id:"wa",phase:"method",tick:"Avg",method:"wa",title:"Weighted average cost",
+     desc:"The weighted average method pools all the costs and assigns every guide the same average cost. Under a periodic system the average is calculated once, at year-end.",
+     hint:"Weighted average cost per unit = cost of goods available ÷ units available. Then multiply it by units on hand for ending inventory and by units sold for cost of goods sold.",
+     why:"Weighted average smooths out cost changes, so its ending inventory and cost of goods sold fall between FIFO and LIFO. Larger purchases carry more weight than smaller ones.",
+     fields:[
+      {id:"wa",label:"Weighted average cost per unit",kind:"$",ans:p.wa.a,work:d$(p.COGA)+" ÷ "+u$(p.U)+" = "+d$(p.wa.a)+" per unit",
+       wrong:v=>(near(v,p.simpleAvg)&&v!==p.wa.a)?"That is a simple average of the four unit costs. Divide total cost of goods available by total units available, so larger purchases count more.":near(v,p.COGA/p.S)?"Divide by units available, not units sold.":"Weighted average cost = cost of goods available ÷ units available."},
+      {id:"wei",label:"Weighted average ending inventory",kind:"$",ans:p.wa.ei,work:u$(p.E)+" × "+d$(p.wa.a)+" = "+d$(p.wa.ei),
+       wrong:v=>v===p.wa.cogs?"That is cost of goods sold. Ending inventory uses the "+u$(p.E)+" still on hand.":"Ending inventory = units on hand × weighted average cost per unit."},
+      {id:"wcg",label:"Weighted average cost of goods sold",kind:"$",ans:p.wa.cogs,work:u$(p.S)+" × "+d$(p.wa.a)+" = "+d$(p.wa.cogs)+" (check: "+d$(p.COGA)+" − "+d$(p.wa.ei)+")",
+       wrong:v=>v===p.wa.ei?"That is ending inventory. Cost of goods sold uses the "+u$(p.S)+" sold.":"Cost of goods sold = units sold × weighted average cost per unit."}
+     ]},
+    {id:"gp",phase:"compare",tick:"GP",title:"Gross profit and comparison",
+     desc:"Every guide sold during the year sold for "+d$(p.price)+". Sales revenue is the same under every method; only cost of goods sold changes.",
+     hint:"Sales revenue = units sold × selling price. Gross profit = sales revenue − cost of goods sold for that method. Then compare the three results.",
+     why:"With "+costTrend+" costs, "+methName[highGP].toUpperCase().replace("WEIGHTED AVERAGE","Weighted average")+" sends the "+cheaper+", lower costs to cost of goods sold, so it reports the highest gross profit. The cost flow method changes how costs are split, not the company's actual cash or the total cost of goods available.",
+     fields:[
+      {id:"rev",label:"Sales revenue",kind:"$",ans:p.sales,work:u$(p.S)+" × "+d$(p.price)+" = "+d$(p.sales),
+       wrong:v=>v===p.U*p.price?"Only the guides sold produce revenue. Use units sold, not units available.":v===p.E*p.price?"Use units sold, not units on hand.":"Sales revenue = units sold × selling price."},
+      {id:"gpf",label:"Gross profit under FIFO",kind:"$",ans:p.gp.fifo,work:d$(p.sales)+" − "+d$(p.fifo.cogs)+" = "+d$(p.gp.fifo),
+       wrong:v=>v===p.sales-p.fifo.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.lifo||v===p.gp.wa?"Use FIFO cost of goods sold.":"Gross profit = sales revenue − FIFO cost of goods sold."},
+      {id:"gpl",label:"Gross profit under LIFO",kind:"$",ans:p.gp.lifo,work:d$(p.sales)+" − "+d$(p.lifo.cogs)+" = "+d$(p.gp.lifo),
+       wrong:v=>v===p.sales-p.lifo.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.fifo||v===p.gp.wa?"Use LIFO cost of goods sold.":"Gross profit = sales revenue − LIFO cost of goods sold."},
+      {id:"gpw",label:"Gross profit under weighted average",kind:"$",ans:p.gp.wa,work:d$(p.sales)+" − "+d$(p.wa.cogs)+" = "+d$(p.gp.wa),
+       wrong:v=>v===p.sales-p.wa.ei?"Subtract cost of goods sold, not ending inventory.":v===p.gp.fifo||v===p.gp.lifo?"Use weighted average cost of goods sold.":"Gross profit = sales revenue − weighted average cost of goods sold."},
+      {id:"hi",label:"Which method reports the highest gross profit this year?",kind:"sel",ans:highGP,opts:[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]],
+       work:methName[highGP].toUpperCase().replace("WEIGHTED AVERAGE","Weighted average")+": it has the lowest cost of goods sold.",
+       wrong:v=>"Costs were "+costTrend+" during the year. The method that puts the "+cheaper+" (lowest) costs into cost of goods sold has the lowest cost of goods sold and the highest gross profit. Compare the three gross profit amounts."},
+      {id:"lo",label:"Which method reports the lowest ending inventory on the balance sheet?",kind:"sel",ans:lowEI,opts:[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]],
+       work:methName[lowEI].toUpperCase()+": its ending inventory uses the lowest costs.",
+       wrong:v=>"Costs were "+costTrend+". The lowest costs were in the "+(p.rising?"earliest":"latest")+" purchases. Which method leaves those costs in ending inventory?"}
+     ]}
+  ];
+}
+let PARTS=[];
+
+// ---------- state ----------
+let cur=0, st=[], confirmReset=false, layTab="fifo";
+function blank(){return {vals:{},fb:null,tries:0,revealed:false,hint:false,status:null};}
+function save(){try{localStorage.setItem(KEY,JSON.stringify({seed,cur,year:YEAR,st:st.map(s=>({vals:s.vals,tries:s.tries,revealed:s.revealed,status:s.status}))}));}catch(e){}}
+function buildSet(sd){seed=sd;P=gen(sd);PARTS=buildParts();$("setNo").textContent="#"+sd;st=PARTS.map(blank);cur=0;layTab="fifo";buildTimeline();}
+function load(){
+  let o=null; try{o=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  if(o&&o.year!==YEAR)o=null;
+  let hs=null; try{const m=/^#set(\d{1,9})$/.exec(location.hash||"");if(m)hs=+m[1];}catch(e){}
+  if(hs&&(!o||o.seed!==hs)){buildSet(hs);return;}
+  if(o&&o.seed){try{buildSet(o.seed);if(Array.isArray(o.st)&&o.st.length===PARTS.length){o.st.forEach((x,i)=>{Object.assign(st[i],x);if(x.status&&!x.revealed)st[i].fb=grade(i);});}cur=Math.max(0,Math.min(PARTS.length-1,o.cur|0));return;}catch(e){}}
+  buildSet(randomSeed());
+}
+function done(id){const i=PARTS.findIndex(p=>p.id===id);return i>=0&&!!st[i].status;}
+
+// ---------- timeline ----------
+const PH_LABEL={setup:"Set up",method:"Cost flow methods",compare:"Compare"};
+function buildTimeline(){
+  let h="";
+  ["setup","method","compare"].forEach(ph=>{
+    h+='<div class="phase ph-'+ph+'"><div class="phase-label">'+PH_LABEL[ph]+'</div><div class="ticks">';
+    PARTS.forEach((p,i)=>{if(p.phase===ph)h+='<button class="tick" data-i="'+i+'">'+p.tick+'</button>';});
+    h+='</div></div>';
+  });
+  $("timeline").innerHTML=h;
+}
+$("timeline").addEventListener("click",e=>{const t=e.target.closest(".tick");if(t){cur=+t.dataset.i;confirmReset=false;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();}});
+const SLAB={first:"correct on first try",retry:"correct after retrying",shown:"answer shown"};
+function renderBar(){
+  const n=st.filter(s=>s.status).length, first=st.filter(s=>s.status==="first").length;
+  $("where").innerHTML='<b>'+n+' of '+PARTS.length+'</b> parts finished · now on '+esc(PARTS[cur].title);
+  const sc=$("score"); sc.hidden=n===0; sc.textContent="First-try correct: "+first+" of "+n;
+  document.querySelectorAll(".tick").forEach(t=>{const i=+t.dataset.i;
+    t.className="tick"+(st[i].status?" done":"")+(i===cur?" cur":"")+(st[i].status?" s-"+st[i].status:"");
+    t.title=PARTS[i].title+(st[i].status?" ("+SLAB[st[i].status]+")":"");
+    t.setAttribute("aria-label","Part "+(i+1)+": "+PARTS[i].title+(st[i].status?", "+SLAB[st[i].status]:""));});
+}
+
+// ---------- inventory record ----------
+function renderRecord(){
+  const showTot=done("avail");
+  let h='<div class="scroll"><table class="rec"><caption><div class="cap-firm">Problem Solvers, Inc.</div><div class="cap-name">How-to Guides: Purchases</div><div class="cap-date">For the Year Ended December 31, '+YEAR+'</div></caption>'+
+    '<thead><tr><th>Date</th><th>Transaction</th><th class="r">Units</th><th class="r">Unit cost</th><th class="r">Total cost</th></tr></thead><tbody>';
+  h+='<tr><td>Jan 1</td><td>Beginning inventory</td><td class="r">0</td><td class="r dim">—</td><td class="r">0</td></tr>';
+  P.q.forEach((q,i)=>{h+='<tr><td>'+dt(i)+'</td><td>Purchase '+(i+1)+'</td><td class="r">'+fmt(q)+'</td><td class="r">'+d$(P.c[i])+'</td><td class="r '+(showTot?"":"dim")+'">'+(showTot?d$(q*P.c[i]):"?")+'</td></tr>';});
+  h+='</tbody><tfoot><tr><td></td><td>Goods available for sale</td><td class="r">'+(showTot?fmt(P.U):"?")+'</td><td></td><td class="r">'+(showTot?d$(P.COGA):"?")+'</td></tr></tfoot></table></div>';
+  h+='<div class="facts"><div class="fact"><span class="k">Dec 31 count</span><span><b class="num">'+fmt(P.E)+'</b> guides on hand</span></div>'+
+     '<div class="fact"><span class="k">Selling price</span><span>Every guide sold during the year sold for <b class="num">'+d$(P.price)+'</b></span></div>'+
+     '<div class="fact"><span class="k">Cost trend</span><span>Unit costs '+(P.rising?"rose":"fell")+' during the year, from '+d$(P.c[0])+' to '+d$(P.c[3])+'</span></div></div>';
+  h+='<p class="note">'+(showTot?"":"Totals marked ? appear after you finish Part 1. ")+'Enter whole dollars and whole units.</p>';
+  $("record").innerHTML=h;
+}
+
+// ---------- part card ----------
+function grade(i){
+  const p=PARTS[i], s=st[i];
+  const res={}; let all=true;
+  p.fields.forEach(f=>{
+    const raw=s.vals[f.id];
+    if(f.kind==="sel"){
+      if(!raw){res[f.id]={ok:false,msg:"Choose an answer."};all=false;return;}
+      if(raw===f.ans){res[f.id]={ok:true,msg:"Correct."};return;}
+      res[f.id]={ok:false,msg:f.wrong(raw)};all=false;return;
+    }
+    const v=parseAmt(raw);
+    if(v===null){res[f.id]={ok:false,msg:"Enter an amount."};all=false;return;}
+    if(isNaN(v)){res[f.id]={ok:false,msg:"Enter a number only, like 2400 or 2,400."};all=false;return;}
+    if(v===f.ans){res[f.id]={ok:true,msg:"Correct."};return;}
+    const nums={}; p.fields.forEach(g=>{if(g.kind!=="sel")nums[g.id]=parseAmt(s.vals[g.id]);});
+    res[f.id]={ok:false,msg:f.wrong(v,nums)};all=false;
+  });
+  return {res,all};
+}
+function fieldHTML(p,f,s,lock){
+  const r=s.fb&&s.fb.res[f.id], cls=s.revealed?"":r?(r.ok?" ok":" no"):"";
+  let ctl;
+  const val=s.vals[f.id]==null?"":s.vals[f.id];
+  if(f.kind==="sel"){
+    ctl='<select data-f="'+f.id+'" aria-label="'+esc(f.label)+'"'+(lock?" disabled":"")+'><option value="">Choose…</option>'+f.opts.map(o=>'<option value="'+o[0]+'"'+(val===o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select>';
+  } else {
+    ctl='<div class="inbox">'+(f.kind==="$"?'<span class="pre">$</span>':'')+'<input data-f="'+f.id+'" inputmode="numeric" autocomplete="off" aria-label="'+esc(f.label)+'" value="'+esc(val)+'"'+(lock?" disabled":"")+'>'+(f.kind==="u"?'<span class="post">units</span>':'')+'</div>';
+  }
+  let h='<div class="field'+cls+'" data-wrap="'+f.id+'"><div class="frow'+(f.kind==="sel"?" sel":"")+'"><label class="flabel">'+esc(f.label)+'</label>'+ctl+'</div>';
+  if(r&&!s.revealed)h+='<div class="fmsg '+(r.ok?"ok":"no")+'"><span>'+(r.ok?"✓":"✗")+'</span><span>'+esc(r.msg)+'</span></div>';
+  if(s.revealed||(r&&r.ok&&s.fb.all))h+='<div class="work">'+esc(f.work)+'</div>';
+  return h+'</div>';
+}
+function controls(primary){
+  let nav;
+  if(confirmReset)nav='<span class="ask">Start over with:</span><button class="btn small" data-act="resetNew">New problem set</button><button class="btn small" data-act="resetSame">Same numbers</button><button class="btn small" data-act="cancelReset">Cancel</button>';
+  else nav='<button class="btn small" data-act="back"'+(cur===0?" disabled":"")+'>← Back</button><button class="btn small" data-act="reset">⟲ Start over</button>';
+  return '<div class="actions"><div class="grp">'+nav+'</div><div class="grp">'+primary+'</div></div>';
+}
+function renderPart(){
+  const p=PARTS[cur], s=st[cur], lock=!!s.status;
+  let h='<div class="meta"><span class="pill '+p.phase+'">Part '+(cur+1)+' of '+PARTS.length+'</span><span>'+PH_LABEL[p.phase]+'</span></div>'+
+    '<h3 class="part-title">'+esc(p.title)+'</h3><p class="part-desc">'+esc(p.desc)+'</p><div class="fields">';
+  p.fields.forEach(f=>{h+=fieldHTML(p,f,s,lock);});
+  h+='</div>';
+  if(s.revealed)h+='<div class="overall shown"><b>Answers shown.</b> Work through each calculation, then try a new problem set to practice on your own.</div>';
+  else if(s.fb){
+    if(s.fb.all)h+='<div class="overall ok"><b>✓ '+(s.tries===1?"Correct on the first try.":"Correct after "+s.tries+" tries.")+'</b></div>';
+    else {const n=Object.values(s.fb.res).filter(x=>!x.ok).length;h+='<div class="overall no"><b>Not quite yet.</b> Fix the '+(n===1?"answer":n+" answers")+' marked ✗ and check again.</div>';}
+  }
+  if(lock)h+='<div class="why"><b>Why it matters</b><br>'+esc(p.why)+'</div>';
+  if(s.hint&&!lock)h+='<div class="hintbox"><b>Hint:</b> '+esc(p.hint)+'</div>';
+  let prim;
+  const allDone=st.every(x=>x.status);
+  if(lock){
+    if(cur<PARTS.length-1)prim='<button class="btn primary" data-act="next">Next part →</button>';
+    else if(allDone)prim='<button class="btn primary" data-act="resetNew">New problem set →</button>';
+    else prim='<button class="btn primary" data-act="todo">Go to the unfinished part →</button>';
+  } else prim=(!s.hint?'<button class="btn small" data-act="hint">Show a hint</button>':'')+'<button class="btn small" data-act="show">Show the answer</button><button class="btn primary" data-act="check">Check my answers</button>';
+  if(allDone&&cur===PARTS.length-1){
+    const c=x=>st.filter(v=>v.status===x).length;
+    h+='<div class="effects"><span class="eff up">First try '+c("first")+'</span><span class="eff none">Retried '+c("retry")+'</span><span class="eff none">Answer shown '+c("shown")+'</span></div>';
+  }
+  $("part").innerHTML=h+controls(prim);
+  $("partSub").textContent=lock?(s.revealed?"Answers shown":"Complete"):"Enter your answers";
+}
+$("part").addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]"); if(!b||b.disabled)return;
+  const act=b.dataset.act, s=st[cur], p=PARTS[cur];
+  if(act==="check"){s.tries++;s.fb=grade(cur);if(s.fb.all)s.status=s.tries===1?"first":"retry";else if(s.tries>=2)s.hint=true;render();
+    const bad=$("part").querySelector(".field.no input,.field.no select");if(bad)bad.focus();else focusAct("next");}
+  else if(act==="hint"){s.hint=true;renderPart();}
+  else if(act==="show"){s.revealed=true;s.status="shown";p.fields.forEach(f=>s.vals[f.id]=f.kind==="sel"?f.ans:fmt(f.ans));render();focusAct("next");}
+  else if(act==="next"){cur++;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();const f=$("part").querySelector("input,select");if(f&&!f.disabled)f.focus({preventScroll:true});}
+  else if(act==="back"){cur--;if(PARTS[cur].method)layTab=PARTS[cur].method;render();scrollPart();}
+  else if(act==="todo"){cur=st.findIndex(x=>!x.status);render();scrollPart();}
+  else if(act==="reset"){confirmReset=true;renderPart();}
+  else if(act==="cancelReset"){confirmReset=false;renderPart();}
+  else if(act==="resetSame"){confirmReset=false;st=PARTS.map(blank);cur=0;layTab="fifo";render();scrollPart();}
+  else if(act==="resetNew"){confirmReset=false;let sd=randomSeed();if(sd===seed)sd++;buildSet(sd);render();scrollPart();}
+});
+function focusAct(a){const p=$("part").querySelector('[data-act="'+a+'"]');if(p){p.focus({preventScroll:true});return true;}return false;}
+function onField(e){
+  const el=e.target; if(!el.dataset||!el.dataset.f)return;
+  const s=st[cur]; s.vals[el.dataset.f]=el.value;
+  if(s.fb&&s.fb.res[el.dataset.f]){delete s.fb.res[el.dataset.f];const w=el.closest(".field");w.className="field";const m=w.querySelector(".fmsg");if(m)m.remove();}
+  save();
+}
+$("part").addEventListener("input",onField);
+$("part").addEventListener("change",onField);
+$("part").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input")){e.preventDefault();const c=$("part").querySelector('[data-act="check"]');if(c)c.click();}});
+function scrollPart(){const p=$("pPart");const r=p.getBoundingClientRect();const top=parseFloat(getComputedStyle(p).scrollMarginTop)||0;if(r.top<top-2||r.top>window.innerHeight*0.6)p.scrollIntoView({block:"start",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});}
+
+// ---------- cost layers ----------
+function renderLayers(){
+  const tabs=[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]];
+  $("layTabs").innerHTML=tabs.map(([id,n])=>'<button class="tab" role="tab" data-tab="'+id+'" aria-selected="'+(layTab===id)+'">'+n+(done(id)?'':'<span class="lock" aria-label="locked">🔒</span>')+'</button>').join("");
+  if(!done(layTab)){$("layers").innerHTML='<div class="locked">Finish the '+(layTab==="wa"?"weighted average":layTab.toUpperCase())+' part to see how its costs split between cost of goods sold and ending inventory.</div>';return;}
+  const U=P.U;
+  let eiU, eiC, cgC;
+  if(layTab==="wa"){
+    eiU=P.q.map(q=>q*P.E/U);
+  } else eiU=P[layTab].eiU;
+  let bar='<div class="stack" role="img" aria-label="Goods available split into cost of goods sold and ending inventory">', lab='<div class="stack-labels">';
+  P.q.forEach((q,i)=>{
+    const w=(q/U*100).toFixed(3), e=eiU[i], c=q-e;
+    const segs=layTab==="lifo"?[["e",e],["c",c]]:[["c",c],["e",e]];
+    bar+='<div class="layer" style="width:'+w+'%">'+segs.filter(x=>x[1]>0.0001).map(([k,n])=>'<div class="seg '+k+'" style="width:'+(n/q*100).toFixed(3)+'%" title="'+(k==="e"?"Ending inventory":"Cost of goods sold")+'">'+(layTab==="wa"?"":fmt(n))+'</div>').join("")+'</div>';
+    lab+='<span style="width:'+w+'%">'+dt(i)+' · '+d$(P.c[i])+'</span>';
+  });
+  bar+='</div>'; lab+='</div>';
+  let h=bar+lab+'<div class="legend"><span><i style="background:var(--cogs)"></i>Cost of goods sold (sold)</span><span><i style="background:var(--ei)"></i>Ending inventory (on hand)</span></div>';
+  if(layTab==="wa"){
+    h+='<div class="scroll"><table class="lay"><thead><tr><th>Weighted average</th><th>Units</th><th>Cost per unit</th><th>Total</th></tr></thead><tbody>'+
+      '<tr><td>Goods available</td><td>'+fmt(U)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.COGA)+'</td></tr>'+
+      '<tr><td>Ending inventory</td><td>'+fmt(P.E)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.wa.ei)+'</td></tr>'+
+      '<tr><td>Cost of goods sold</td><td>'+fmt(P.S)+'</td><td>'+d$(P.wa.a)+'</td><td>'+d$(P.wa.cogs)+'</td></tr></tbody></table></div>'+
+      '<p class="note">Every guide carries the same '+d$(P.wa.a)+' average cost, so each purchase is split in the same proportion: '+fmt(P.E)+' of '+fmt(U)+' units stay in ending inventory.</p>';
+  } else {
+    const M=P[layTab]; let te=0,tc=0;
+    h+='<div class="scroll"><table class="lay"><thead><tr><th>Purchase</th><th>Units</th><th>Cost</th><th class="ei gap">EI units</th><th class="ei">EI cost</th><th class="cg gap">COGS units</th><th class="cg">COGS cost</th></tr></thead><tbody>';
+    P.q.forEach((q,i)=>{const e=M.eiU[i], c=q-e; te+=e*P.c[i]; tc+=c*P.c[i];
+      h+='<tr><td>'+dt(i)+'</td><td>'+fmt(q)+'</td><td>'+d$(P.c[i])+'</td><td class="gap">'+(e?fmt(e):"—")+'</td><td>'+(e?d$(e*P.c[i]):"—")+'</td><td class="gap">'+(c?fmt(c):"—")+'</td><td>'+(c?d$(c*P.c[i]):"—")+'</td></tr>';});
+    h+='</tbody><tfoot><tr><td>Total</td><td>'+fmt(U)+'</td><td></td><td class="gap">'+fmt(P.E)+'</td><td>'+d$(te)+'</td><td class="gap">'+fmt(P.S)+'</td><td>'+d$(tc)+'</td></tr></tfoot></table></div>'+
+      '<p class="note">'+(layTab==="fifo"?"FIFO: the oldest purchases are treated as sold first, so ending inventory is the newest units.":"LIFO (periodic): the newest purchases are treated as sold first, so ending inventory is the year's oldest units.")+'</p>';
+  }
+  $("layers").innerHTML=h;
+}
+$("layTabs").addEventListener("click",e=>{const t=e.target.closest("[data-tab]");if(t){layTab=t.dataset.tab;renderLayers();}});
+
+// ---------- comparison ----------
+function renderCompare(){
+  const gpDone=done("gp");
+  const rows=[["fifo","FIFO"],["lifo","LIFO"],["wa","Weighted average"]];
+  const hi=P.rising?"fifo":"lifo";
+  let h='<div class="scroll"><table class="cmp"><thead><tr><th>Method</th><th>Ending inventory</th><th>Cost of goods sold</th><th>Gross profit</th><th>Gross profit %</th></tr></thead><tbody>';
+  rows.forEach(([id,n])=>{const M=P[id], d=done(id);
+    h+='<tr class="'+(gpDone&&id===hi?"hi":"")+'"><td>'+n+'</td><td class="'+(d?"":"q")+'">'+(d?d$(M.ei):"?")+'</td><td class="'+(d?"":"q")+'">'+(d?d$(M.cogs):"?")+'</td><td class="'+(gpDone?"":"q")+'">'+(gpDone?d$(P.gp[id]):"?")+'</td><td class="'+(gpDone?"":"q")+'">'+(gpDone?(P.gp[id]/P.sales*100).toFixed(2)+"%":"?")+'</td></tr>';});
+  h+='</tbody></table></div>';
+  if(done("avail"))h+='<div class="cmp-note">For every method, ending inventory + cost of goods sold = '+d$(P.COGA)+' cost of goods available. <span class="balanced">✓</span></div>';
+  if(gpDone)h+='<div class="cmp-note">Costs '+(P.rising?"rose":"fell")+' this year, so <b>'+(P.rising?"FIFO":"LIFO")+'</b> reports the highest gross profit and the highest ending inventory, and <b>'+(P.rising?"LIFO":"FIFO")+'</b> reports the lowest. Weighted average falls in between. Gross profit % = gross profit ÷ sales revenue.</div>';
+  else h+='<p class="note">Rows fill in as you finish each method. Gross profit appears after Part 6.</p>';
+  $("compare").innerHTML=h;
+}
+
+function render(){renderBar();renderRecord();renderPart();renderLayers();renderCompare();save();
+  const ct=document.querySelector(".tick.cur");
+  if(ct){const tl=$("timeline");const cr=ct.getBoundingClientRect(),tr=tl.getBoundingClientRect();if(cr.left<tr.left||cr.right>tr.right)tl.scrollLeft+=cr.left-tr.left-tr.width/2;}}
+function measure(){const r=document.documentElement;r.style.setProperty("--b1",$("band1").offsetHeight+"px");r.style.setProperty("--b2",$("band2").offsetHeight+"px");}
+try{new ResizeObserver(measure).observe($("band1"));new ResizeObserver(measure).observe($("band2"));}catch(e){window.addEventListener("resize",measure);}
+measure();
+
+window.__lab={gen};
+load();
+render();
+})();
+</script>
+</body>
+</html>
