@@ -161,6 +161,7 @@ table.rec{width:100%;border-collapse:collapse;font-size:14.5px}
 .why b{font-family:var(--f-display);font-size:16px}
 .actions{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:16px;padding-top:12px;border-top:1px solid var(--rule);align-items:center;justify-content:space-between}
 .actions .grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.actions .grp:last-child{margin-left:auto}
 .actions .ask{font-size:13.5px;font-weight:600}
 .btn{border:1px solid var(--rule-strong);background:var(--sheet);border-radius:6px;padding:7px 12px;font-size:14.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:36px}
 .btn:hover{background:var(--brand-soft)}
@@ -306,8 +307,9 @@ function gen(seed){
     const take=(order)=>{const e=[0,0,0,0];let left=E;order.forEach(i=>{const x=Math.min(left,q[i]);e[i]=x;left-=x;});return e;};
     const fe=take([3,2,1,0]), le=take([0,1,2,3]);
     const cost=(e)=>e.reduce((a,x,i)=>a+x*c[i],0);
-    const fifo={eiU:fe,ei:cost(fe)}; fifo.cogs=COGA-fifo.ei;
-    const lifo={eiU:le,ei:cost(le)}; lifo.cogs=COGA-lifo.ei;
+    const sold=(e)=>q.map((x,i)=>x-e[i]);
+    const fifo={eiU:fe,cgU:sold(fe),ei:cost(fe)}; fifo.cogs=COGA-fifo.ei;
+    const lifo={eiU:le,cgU:sold(le),ei:cost(le)}; lifo.cogs=COGA-lifo.ei;
     const wa={a:avg,ei:E*avg,cogs:S*avg};
     if(new Set([fifo.ei,fifo.cogs,lifo.ei,lifo.cogs,wa.ei,wa.cogs]).size<6)continue;
     const price=Math.max(...c)+R(8,15), sales=S*price;
@@ -355,35 +357,35 @@ function buildParts(){
      ]},
     {id:"fifo",phase:"method",tick:"FIFO",method:"fifo",title:"First-in, first-out (FIFO)",
      desc:"FIFO assumes the oldest guides are sold first. The guides left on the shelf come from the most recent purchases.",
-     hint:"Start with the most recent purchase ("+L[3].date+") and work backward until you have "+u$(p.E)+" for ending inventory. Cost of goods sold = cost of goods available − ending inventory.",
+     hint:"Start with the oldest purchase ("+L[0].date+") and work forward until you have the "+u$(p.S)+" sold for cost of goods sold. Ending inventory = cost of goods available − cost of goods sold.",
      why:"Under FIFO, ending inventory is priced at the newest costs, so the balance sheet is close to current cost. With "+costTrend+" costs, FIFO's cost of goods sold uses the "+(p.rising?"older, lower":"older, higher")+" costs.",
      fields:[
-      {id:"fei",label:"FIFO ending inventory",kind:"$",ans:p.fifo.ei,work:"Newest first: "+workLayers(p.fifo.eiU,"new"),
-       wrong:v=>v===p.lifo.ei?"That is the LIFO answer: you used the oldest costs. Under FIFO the oldest costs are sold first, so ending inventory comes from the newest purchases.":v===p.fifo.cogs?"That is FIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":v===p.E*L[3].c?"The "+u$(p.E)+" on hand is more than the "+u$(L[3].q)+" in the last purchase. Take the rest from the next most recent purchase.":v===p.wa.ei?"That is the weighted average answer. FIFO uses the actual costs of the newest purchases.":"Start with the newest purchase and work backward until you have "+u$(p.E)+"."},
-      {id:"fcg",label:"FIFO cost of goods sold",kind:"$",ans:p.fifo.cogs,work:d$(p.COGA)+" available − "+d$(p.fifo.ei)+" ending inventory = "+d$(p.fifo.cogs),
-       wrong:(v,vals)=>v===p.lifo.cogs?"That is LIFO cost of goods sold. Under FIFO, the oldest purchases go to cost of goods sold.":v===p.fifo.ei?"That is FIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":(vals.fei!==p.fifo.ei&&v===p.COGA-vals.fei)?"Your subtraction is right, but your ending inventory is not. Fix ending inventory first.":"Cost of goods sold = cost of goods available − ending inventory."}
+      {id:"fcg",label:"FIFO cost of goods sold",kind:"$",ans:p.fifo.cogs,work:"Oldest first: "+workLayers(p.fifo.cgU,"old"),
+       wrong:v=>v===p.lifo.cogs?"That is the LIFO answer: you used the newest costs. Under FIFO the oldest guides are sold first, so cost of goods sold comes from the oldest purchases.":v===p.fifo.ei?"That is FIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":v===p.S*L[0].c?"The "+u$(p.S)+" sold is more than the "+u$(L[0].q)+" in the first purchase. Take the rest from the next oldest purchase.":v===p.wa.cogs?"That is the weighted average answer. FIFO uses the actual costs of the oldest purchases.":"Start with the oldest purchase and work forward until you have the "+u$(p.S)+" sold."},
+      {id:"fei",label:"FIFO ending inventory",kind:"$",ans:p.fifo.ei,work:d$(p.COGA)+" available − "+d$(p.fifo.cogs)+" cost of goods sold = "+d$(p.fifo.ei)+" (the newest "+u$(p.E)+": "+workLayers(p.fifo.eiU,"new")+")",
+       wrong:(v,vals)=>v===p.lifo.ei?"That is LIFO ending inventory. Under FIFO, the guides on hand come from the newest purchases.":v===p.fifo.cogs?"That is FIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":(vals.fcg!==p.fifo.cogs&&v===p.COGA-vals.fcg)?"Your subtraction is right, but your cost of goods sold is not. Fix cost of goods sold first.":"Ending inventory = cost of goods available − cost of goods sold."}
      ]},
     {id:"lifo",phase:"method",tick:"LIFO",method:"lifo",title:"Last-in, first-out (LIFO)",
      desc:"LIFO assumes the newest guides are sold first. Under a periodic system, the guides left on the shelf are priced at the year's earliest purchase costs.",
-     hint:"Start with the oldest purchase ("+L[0].date+") and work forward until you have "+u$(p.E)+" for ending inventory. Cost of goods sold = cost of goods available − ending inventory.",
+     hint:"Start with the most recent purchase ("+L[3].date+") and work backward until you have the "+u$(p.S)+" sold for cost of goods sold. Ending inventory = cost of goods available − cost of goods sold.",
      why:"Under LIFO, cost of goods sold uses the newest costs, so the income statement reflects current costs. With "+costTrend+" costs, LIFO reports "+(p.rising?"higher":"lower")+" cost of goods sold than FIFO. LIFO is allowed under US GAAP but not under IFRS.",
      fields:[
-      {id:"lei",label:"LIFO ending inventory",kind:"$",ans:p.lifo.ei,work:"Oldest first: "+workLayers(p.lifo.eiU,"old"),
-       wrong:v=>v===p.fifo.ei?"That is the FIFO answer: you used the newest costs. Under LIFO the newest costs are sold first, so ending inventory comes from the oldest purchases.":v===p.lifo.cogs?"That is LIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":v===p.E*L[0].c?"The "+u$(p.E)+" on hand is more than the "+u$(L[0].q)+" in the first purchase. Take the rest from the next oldest purchase.":v===p.wa.ei?"That is the weighted average answer. LIFO uses the actual costs of the oldest purchases.":"Start with the oldest purchase and work forward until you have "+u$(p.E)+"."},
-      {id:"lcg",label:"LIFO cost of goods sold",kind:"$",ans:p.lifo.cogs,work:d$(p.COGA)+" available − "+d$(p.lifo.ei)+" ending inventory = "+d$(p.lifo.cogs),
-       wrong:(v,vals)=>v===p.fifo.cogs?"That is FIFO cost of goods sold. Under LIFO, the newest purchases go to cost of goods sold.":v===p.lifo.ei?"That is LIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":(vals.lei!==p.lifo.ei&&v===p.COGA-vals.lei)?"Your subtraction is right, but your ending inventory is not. Fix ending inventory first.":"Cost of goods sold = cost of goods available − ending inventory."}
+      {id:"lcg",label:"LIFO cost of goods sold",kind:"$",ans:p.lifo.cogs,work:"Newest first: "+workLayers(p.lifo.cgU,"new"),
+       wrong:v=>v===p.fifo.cogs?"That is the FIFO answer: you used the oldest costs. Under LIFO the newest guides are sold first, so cost of goods sold comes from the newest purchases.":v===p.lifo.ei?"That is LIFO ending inventory. Cost of goods sold is the cost of the "+u$(p.S)+" sold.":v===p.S*L[3].c?"The "+u$(p.S)+" sold is more than the "+u$(L[3].q)+" in the last purchase. Take the rest from the next most recent purchase.":v===p.wa.cogs?"That is the weighted average answer. LIFO uses the actual costs of the newest purchases.":"Start with the newest purchase and work backward until you have the "+u$(p.S)+" sold."},
+      {id:"lei",label:"LIFO ending inventory",kind:"$",ans:p.lifo.ei,work:d$(p.COGA)+" available − "+d$(p.lifo.cogs)+" cost of goods sold = "+d$(p.lifo.ei)+" (the oldest "+u$(p.E)+": "+workLayers(p.lifo.eiU,"old")+")",
+       wrong:(v,vals)=>v===p.fifo.ei?"That is FIFO ending inventory. Under LIFO, the guides on hand come from the oldest purchases.":v===p.lifo.cogs?"That is LIFO cost of goods sold. Ending inventory is the "+u$(p.E)+" still on hand.":(vals.lcg!==p.lifo.cogs&&v===p.COGA-vals.lcg)?"Your subtraction is right, but your cost of goods sold is not. Fix cost of goods sold first.":"Ending inventory = cost of goods available − cost of goods sold."}
      ]},
     {id:"wa",phase:"method",tick:"Avg",method:"wa",title:"Weighted average cost",
      desc:"The weighted average method pools all the costs and assigns every guide the same average cost. Under a periodic system the average is calculated once, at year-end.",
-     hint:"Weighted average cost per unit = cost of goods available ÷ units available. Then multiply it by units on hand for ending inventory and by units sold for cost of goods sold.",
+     hint:"Weighted average cost per unit = cost of goods available ÷ units available. Then multiply it by units sold for cost of goods sold and by units on hand for ending inventory.",
      why:"Weighted average smooths out cost changes, so its ending inventory and cost of goods sold fall between FIFO and LIFO. Larger purchases carry more weight than smaller ones.",
      fields:[
       {id:"wa",label:"Weighted average cost per unit",kind:"$",ans:p.wa.a,work:d$(p.COGA)+" ÷ "+u$(p.U)+" = "+d$(p.wa.a)+" per unit",
        wrong:v=>(near(v,p.simpleAvg)&&v!==p.wa.a)?"That is a simple average of the four unit costs. Divide total cost of goods available by total units available, so larger purchases count more.":near(v,p.COGA/p.S)?"Divide by units available, not units sold.":"Weighted average cost = cost of goods available ÷ units available."},
-      {id:"wei",label:"Weighted average ending inventory",kind:"$",ans:p.wa.ei,work:u$(p.E)+" × "+d$(p.wa.a)+" = "+d$(p.wa.ei),
-       wrong:v=>v===p.wa.cogs?"That is cost of goods sold. Ending inventory uses the "+u$(p.E)+" still on hand.":"Ending inventory = units on hand × weighted average cost per unit."},
-      {id:"wcg",label:"Weighted average cost of goods sold",kind:"$",ans:p.wa.cogs,work:u$(p.S)+" × "+d$(p.wa.a)+" = "+d$(p.wa.cogs)+" (check: "+d$(p.COGA)+" − "+d$(p.wa.ei)+")",
-       wrong:v=>v===p.wa.ei?"That is ending inventory. Cost of goods sold uses the "+u$(p.S)+" sold.":"Cost of goods sold = units sold × weighted average cost per unit."}
+      {id:"wcg",label:"Weighted average cost of goods sold",kind:"$",ans:p.wa.cogs,work:u$(p.S)+" × "+d$(p.wa.a)+" = "+d$(p.wa.cogs),
+       wrong:v=>v===p.wa.ei?"That is ending inventory. Cost of goods sold uses the "+u$(p.S)+" sold.":"Cost of goods sold = units sold × weighted average cost per unit."},
+      {id:"wei",label:"Weighted average ending inventory",kind:"$",ans:p.wa.ei,work:u$(p.E)+" × "+d$(p.wa.a)+" = "+d$(p.wa.ei)+" (check: "+d$(p.COGA)+" − "+d$(p.wa.cogs)+")",
+       wrong:v=>v===p.wa.cogs?"That is cost of goods sold. Ending inventory uses the "+u$(p.E)+" still on hand.":"Ending inventory = units on hand × weighted average cost per unit."}
      ]},
     {id:"gp",phase:"compare",tick:"GP",title:"Gross profit and comparison",
      desc:"Every guide sold during the year sold for "+d$(p.price)+". Sales revenue is the same under every method; only cost of goods sold changes.",
